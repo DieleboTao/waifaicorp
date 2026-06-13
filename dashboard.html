@@ -1,0 +1,477 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <title>WaifaiCorp – Legal Assistant</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            background: #F5F7FA;
+            color: #1A1F36;
+            font-size: 16px;
+        }
+        .auth-container {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 1rem;
+        }
+        .auth-card {
+            background: white;
+            border-radius: 20px;
+            border: 1px solid #E4E7EC;
+            padding: 2rem;
+            width: 100%;
+            max-width: 420px;
+        }
+        .auth-title { font-size: 1.5rem; font-weight: 600; color: #0B2B4B; }
+        .tabs { display: flex; gap: 1rem; border-bottom: 1px solid #E4E7EC; margin-bottom: 1.5rem; }
+        .tab-btn { background: none; border: none; padding: 0.5rem 0; font-size: 1rem; cursor: pointer; }
+        .tab-btn.active { color: #0B2B4B; font-weight: 600; border-bottom: 2px solid #0B2B4B; }
+        .form-group { margin-bottom: 1rem; }
+        input { width: 100%; padding: 0.75rem; border: 1px solid #C4CDD5; border-radius: 10px; font-size: 1rem; }
+        .btn { padding: 0.75rem 1rem; border-radius: 10px; cursor: pointer; border: none; font-size: 1rem; }
+        .btn-primary { background: #0B2B4B; color: white; width: 100%; }
+        .btn-primary:hover { background: #1A3A5C; }
+        .btn-secondary { background: white; border: 1px solid #C4CDD5; }
+        .dashboard { display: none; height: 100vh; overflow: hidden; }
+        .app { display: flex; height: 100%; flex-direction: row; }
+        .sidebar {
+            width: 280px;
+            background: white;
+            border-right: 1px solid #E4E7EC;
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+        }
+        .sidebar-header { padding: 1rem; border-bottom: 1px solid #E4E7EC; }
+        .logo { font-size: 1.2rem; font-weight: 600; color: #0B2B4B; }
+        .new-contract-btn { margin: 1rem; width: calc(100% - 2rem); }
+        .contract-list { flex: 1; padding: 0 0.75rem; overflow-y: auto; }
+        .contract-item {
+            padding: 0.75rem;
+            border-radius: 12px;
+            margin-bottom: 0.5rem;
+            cursor: pointer;
+            border: 1px solid transparent;
+        }
+        .contract-item.active { background: #EEEDFE; border-color: #AFA9EC; }
+        .contract-title { font-weight: 500; font-size: 0.875rem; }
+        .status-badge { display: inline-block; padding: 0.2rem 0.5rem; border-radius: 99px; font-size: 0.7rem; }
+        .status-draft { background: #FEF3C7; color: #92400E; }
+        .status-review { background: #DBEAFE; color: #1E40AF; }
+        .status-signed { background: #DCFCE7; color: #166534; }
+        .main {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            background: white;
+        }
+        .main-header { padding: 1rem; border-bottom: 1px solid #E4E7EC; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem; }
+        .panel { flex: 1; overflow-y: auto; padding: 1rem; }
+        .chat-messages { display: flex; flex-direction: column; gap: 1rem; margin-bottom: 1rem; }
+        .msg { display: flex; gap: 0.75rem; }
+        .msg.user { flex-direction: row-reverse; }
+        .msg-avatar { width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 600; }
+        .ai-av { background: #EEEDFE; color: #534AB7; }
+        .user-av { background: #EAF3DE; color: #3B6D11; }
+        .msg-bubble { max-width: 75%; padding: 0.75rem 1rem; border-radius: 18px; font-size: 0.875rem; }
+        .ai-bubble { background: #F5F7FA; }
+        .user-bubble { background: #0B2B4B; color: white; }
+        .chat-input-area { display: flex; gap: 0.75rem; border-top: 1px solid #E4E7EC; padding-top: 1rem; flex-wrap: wrap; }
+        .chat-input-area textarea { flex: 1; resize: none; border: 1px solid #C4CDD5; border-radius: 16px; padding: 0.75rem; font-size: 1rem; }
+        .contract-doc { max-width: 900px; margin: 0 auto; background: white; padding: 1rem; font-family: Georgia, serif; }
+        .clause { margin-bottom: 1.5rem; }
+        .clause-title { font-weight: bold; margin-bottom: 0.5rem; }
+        .party-row { display: flex; justify-content: space-between; padding: 0.75rem; border-bottom: 1px solid #E4E7EC; flex-wrap: wrap; }
+        .toast { position: fixed; bottom: 20px; right: 20px; background: #0B2B4B; color: white; padding: 0.75rem 1rem; border-radius: 8px; opacity: 0; transition: 0.2s; z-index: 1000; }
+        .toast.show { opacity: 1; }
+        .loading-spinner { display: inline-block; width: 16px; height: 16px; border: 2px solid rgba(0,0,0,0.2); border-top-color: #0B2B4B; border-radius: 50%; animation: spin 0.6s linear infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        @media (max-width: 768px) {
+            .sidebar { width: 240px; }
+            .app { flex-direction: column; }
+            .sidebar { width: 100%; height: auto; border-right: none; border-bottom: 1px solid #E4E7EC; }
+            .main { height: auto; }
+        }
+    </style>
+</head>
+<body>
+<div id="authContainer" class="auth-container">
+    <div class="auth-card">
+        <div class="auth-title">WaifaiCorp</div>
+        <div class="tabs"><button class="tab-btn active" data-auth-tab="login">Sign In</button><button class="tab-btn" data-auth-tab="signup">Sign Up</button></div>
+        <div id="loginForm">
+            <div class="form-group"><input type="email" id="loginEmail" placeholder="Email" autocomplete="email"></div>
+            <div class="form-group"><input type="password" id="loginPassword" placeholder="Password" autocomplete="current-password"></div>
+            <button class="btn btn-primary" id="loginBtn">Sign In</button>
+        </div>
+        <div id="signupForm" style="display:none;">
+            <div class="form-group"><input type="text" id="signupCompany" placeholder="Company Name"></div>
+            <div class="form-group"><input type="email" id="signupEmail" placeholder="Email"></div>
+            <div class="form-group"><input type="password" id="signupPassword" placeholder="Password"></div>
+            <button class="btn btn-primary" id="signupBtn">Create Account</button>
+        </div>
+    </div>
+</div>
+<div id="dashboard" class="dashboard">
+    <div class="app">
+        <div class="sidebar">
+            <div class="sidebar-header"><div class="logo">WaifaiCorp <small>Legal Assistant</small></div></div>
+            <button class="btn btn-primary new-contract-btn" id="newContractBtn">+ New contract</button>
+            <div class="contract-list" id="contractList"></div>
+            <div style="padding:1rem; border-top:1px solid #E4E7EC; margin-top:auto;">
+                <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.5rem;">
+                    <span id="companyNameDisplay"></span>
+                    <button class="btn btn-secondary btn-sm" id="logoutBtn">Sign out</button>
+                </div>
+            </div>
+        </div>
+        <div class="main">
+            <div class="main-header">
+                <h1 id="mainTitle">WaifaiCorp</h1>
+                <div id="mainActions"></div>
+            </div>
+            <div id="panelContainer" class="panel"></div>
+        </div>
+    </div>
+</div>
+<div id="toast" class="toast"></div>
+<script>
+    localStorage.clear();
+    let companyId = null, companyName = null;
+    let allContracts = [];
+    let activeContractId = null;
+    let newContractMode = false;
+    let assistantSessionId = null;
+    let assistantConversation = [];
+    let assistantGenerating = false;
+    let refreshInterval = null;
+
+    function showToast(msg) {
+        const toast = document.getElementById('toast');
+        toast.textContent = msg;
+        toast.classList.add('show');
+        setTimeout(() => toast.classList.remove('show'), 2500);
+    }
+
+    async function apiCall(url, options = {}) {
+        const res = await fetch(url, { headers: { 'Content-Type': 'application/json' }, ...options });
+        const json = await res.json();
+        if (!res.ok) throw new Error(json.error || 'Request failed');
+        return json;
+    }
+
+    // Auth
+    function setupEnterKey() {
+        const loginEmail = document.getElementById('loginEmail');
+        const loginPassword = document.getElementById('loginPassword');
+        const loginBtn = document.getElementById('loginBtn');
+        const signupEmail = document.getElementById('signupEmail');
+        const signupPassword = document.getElementById('signupPassword');
+        const signupCompany = document.getElementById('signupCompany');
+        const signupBtn = document.getElementById('signupBtn');
+
+        const handleEnter = (e, callback) => { if (e.key === 'Enter') callback(); };
+        loginEmail?.addEventListener('keypress', (e) => handleEnter(e, () => loginBtn.click()));
+        loginPassword?.addEventListener('keypress', (e) => handleEnter(e, () => loginBtn.click()));
+        signupCompany?.addEventListener('keypress', (e) => handleEnter(e, () => signupBtn.click()));
+        signupEmail?.addEventListener('keypress', (e) => handleEnter(e, () => signupBtn.click()));
+        signupPassword?.addEventListener('keypress', (e) => handleEnter(e, () => signupBtn.click()));
+    }
+    setupEnterKey();
+
+    document.getElementById('loginBtn').onclick = async () => {
+        const email = document.getElementById('loginEmail').value;
+        const password = document.getElementById('loginPassword').value;
+        if (!email) return showToast('Email required');
+        try {
+            const data = await apiCall('/api/company/login', { method: 'POST', body: JSON.stringify({ email, password }) });
+            if (data.success) {
+                localStorage.setItem('companyId', data.companyId);
+                localStorage.setItem('companyName', data.companyName);
+                companyId = data.companyId;
+                companyName = data.companyName;
+                await initDashboard();
+            } else showToast(data.error || 'Login failed');
+        } catch (err) { showToast(err.message); }
+    };
+    document.getElementById('signupBtn').onclick = async () => {
+        const name = document.getElementById('signupCompany').value;
+        const email = document.getElementById('signupEmail').value;
+        const password = document.getElementById('signupPassword').value;
+        if (!name || !email) return showToast('Company name and email required');
+        try {
+            const data = await apiCall('/api/company/register', { method: 'POST', body: JSON.stringify({ name, email, password }) });
+            if (data.success) {
+                localStorage.setItem('companyId', data.companyId);
+                localStorage.setItem('companyName', data.companyName);
+                companyId = data.companyId;
+                companyName = data.companyName;
+                await initDashboard();
+            } else showToast(data.error || 'Registration failed');
+        } catch (err) { showToast(err.message); }
+    };
+    document.getElementById('logoutBtn')?.addEventListener('click', () => {
+        if (refreshInterval) clearInterval(refreshInterval);
+        localStorage.clear();
+        window.location.reload();
+    });
+    const authTabs = document.querySelectorAll('[data-auth-tab]');
+    authTabs.forEach(btn => btn.addEventListener('click', () => {
+        const tab = btn.dataset.authTab;
+        document.getElementById('loginForm').style.display = tab === 'login' ? 'block' : 'none';
+        document.getElementById('signupForm').style.display = tab === 'signup' ? 'block' : 'none';
+        authTabs.forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+    }));
+
+    async function loadContracts() {
+        try {
+            const contracts = await apiCall(`/api/company/contracts/${companyId}`);
+            allContracts = contracts;
+            renderContractList();
+            if (activeContractId && !allContracts.find(c => c.id === activeContractId)) {
+                activeContractId = null;
+                newContractMode = false;
+            }
+            if (!activeContractId && allContracts.length > 0 && !newContractMode) {
+                activeContractId = allContracts[0].id;
+            }
+            renderMain();
+        } catch (err) { showToast('Failed to load contracts'); }
+    }
+
+    function renderContractList() {
+        const container = document.getElementById('contractList');
+        if (!container) return;
+        if (newContractMode) {
+            container.innerHTML = `<div class="contract-item active" style="background:#EEEDFE;">✨ New contract</div>`;
+        } else {
+            container.innerHTML = allContracts.map(c => `
+                <div class="contract-item ${c.id === activeContractId ? 'active' : ''}" data-id="${c.id}">
+                    <div class="contract-title">${escapeHtml(c.title)}</div>
+                    <div><span class="status-badge status-${c.status === 'signed' ? 'signed' : (c.status === 'client_review' ? 'review' : 'draft')}">${c.status === 'signed' ? 'Signed' : (c.status === 'client_review' ? 'Pending' : 'Draft')}</span></div>
+                </div>
+            `).join('');
+        }
+        document.querySelectorAll('.contract-item').forEach(el => {
+            if (el.dataset.id) {
+                el.addEventListener('click', () => {
+                    activeContractId = el.dataset.id;
+                    newContractMode = false;
+                    renderContractList();
+                    renderMain();
+                });
+            }
+        });
+    }
+
+    function startNewContract() {
+        newContractMode = true;
+        activeContractId = null;
+        assistantSessionId = 'session_' + Date.now() + '_' + Math.random().toString(36).substring(2);
+        assistantConversation = [];
+        fetchFirstQuestion();
+        renderContractList();
+        renderMain();
+    }
+
+    async function fetchFirstQuestion() {
+        if (!assistantSessionId) return;
+        try {
+            const response = await fetch('/api/ai/assistant', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ sessionId: assistantSessionId, companyId })
+            });
+            const data = await response.json();
+            if (data.action === 'ask') {
+                assistantConversation = [{ role: 'assistant', content: data.question }];
+                renderChatPanel();
+            } else {
+                assistantConversation = [{ role: 'assistant', content: 'Welcome. Are you Provider or Client?' }];
+                renderChatPanel();
+            }
+        } catch (err) {
+            assistantConversation = [{ role: 'assistant', content: 'Error starting assistant. Please refresh.' }];
+            renderChatPanel();
+        }
+    }
+
+    async function sendChatMessage(userText) {
+        if (assistantGenerating) return;
+        assistantGenerating = true;
+        assistantConversation.push({ role: 'user', content: userText });
+        renderChatPanel();
+        assistantConversation.push({ role: 'assistant', content: '<span class="loading-spinner"></span> Thinking...' });
+        renderChatPanel();
+        try {
+            const response = await fetch('/api/ai/assistant', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ sessionId: assistantSessionId, message: userText, companyId })
+            });
+            const data = await response.json();
+            if (!response.ok) throw new Error(data.error || 'Assistant error');
+            assistantConversation.pop();
+            if (data.action === 'ask') {
+                assistantConversation.push({ role: 'assistant', content: data.question });
+                renderChatPanel();
+            } else if (data.action === 'generate') {
+                const saveRes = await apiCall('/api/contracts', {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        title: data.contract.title,
+                        parties: data.contract.parties,
+                        clauses: data.contract.clauses,
+                        conditions: data.contract.conditions || {},
+                        companyId,
+                        autoPublish: true
+                    })
+                });
+                if (saveRes.success) {
+                    assistantConversation.push({ role: 'assistant', content: `✅ Contract "${data.contract.title}" saved.` });
+                    renderChatPanel();
+                    await loadContracts();
+                    activeContractId = saveRes.contractId;
+                    newContractMode = false;
+                    renderContractList();
+                    renderMain();
+                } else throw new Error(saveRes.error);
+            } else {
+                assistantConversation.push({ role: 'assistant', content: 'Unexpected response.' });
+                renderChatPanel();
+            }
+        } catch (err) {
+            assistantConversation.pop();
+            assistantConversation.push({ role: 'assistant', content: `⚠️ Error: ${err.message}. Start new contract.` });
+            renderChatPanel();
+        } finally {
+            assistantGenerating = false;
+        }
+    }
+
+    function renderChatPanel() {
+        const container = document.getElementById('panelContainer');
+        if (!container) return;
+        const html = `
+            <div style="display:flex; flex-direction:column; height:100%;">
+                <div id="chatMessages" class="chat-messages" style="flex:1; overflow-y:auto; margin-bottom:1rem;">
+                    ${assistantConversation.map(msg => `
+                        <div class="msg ${msg.role === 'user' ? 'user' : ''}">
+                            <div class="msg-avatar ${msg.role === 'user' ? 'user-av' : 'ai-av'}">${msg.role === 'user' ? 'You' : 'AI'}</div>
+                            <div class="msg-bubble ${msg.role === 'user' ? 'user-bubble' : 'ai-bubble'}">${msg.content}</div>
+                        </div>
+                    `).join('')}
+                </div>
+                <div class="chat-input-area">
+                    <textarea id="chatInput" rows="1" placeholder="Type your answer..." autofocus></textarea>
+                    <button class="btn btn-primary" id="sendChatBtn">Send</button>
+                </div>
+            </div>
+        `;
+        container.innerHTML = html;
+        const sendBtn = document.getElementById('sendChatBtn');
+        const chatInput = document.getElementById('chatInput');
+        if (sendBtn && chatInput) {
+            sendBtn.onclick = () => {
+                const val = chatInput.value.trim();
+                if (val && !assistantGenerating) sendChatMessage(val);
+                chatInput.value = '';
+                chatInput.focus();
+            };
+            chatInput.onkeydown = (e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    const val = chatInput.value.trim();
+                    if (val && !assistantGenerating) sendChatMessage(val);
+                    chatInput.value = '';
+                    chatInput.focus();
+                }
+            };
+            chatInput.focus();
+        }
+        const msgDiv = document.getElementById('chatMessages');
+        if (msgDiv) msgDiv.scrollTop = msgDiv.scrollHeight;
+    }
+
+    async function renderContractView(contract) {
+        let qrCodeUrl = '';
+        try {
+            const qrData = await apiCall(`/api/contracts/${contract.id}/qr`);
+            qrCodeUrl = qrData.qrCode;
+        } catch(e) {}
+        const baseLink = `${window.location.origin}/public/contract/${contract.qr_token}`;
+        const clauses = contract.clauses || [];
+        const parties = contract.parties || [];
+        let html = `<div class="contract-doc"><h1>${escapeHtml(contract.title)}</h1><p>Created ${new Date(contract.created_at).toLocaleDateString()}</p>`;
+        clauses.forEach(cl => {
+            html += `<div class="clause"><div class="clause-title">${escapeHtml(cl.title)}</div><div>${escapeHtml(cl.content)}</div></div>`;
+        });
+        html += `<h3>Parties</h3>`;
+        parties.forEach(p => {
+            const signedStatus = p.signed ? '✅ Signed' : '⏳ Not signed';
+            html += `<div class="party-row"><div><strong>${escapeHtml(p.name)}</strong> (${p.role})<br>${p.email || 'no email'}</div><div>${signedStatus}</div></div>`;
+        });
+        html += `<div><h3>Signing link</h3><div style="display:flex; gap:0.5rem; flex-wrap:wrap;"><input type="text" readonly value="${baseLink}" style="flex:1;"><button class="btn btn-secondary btn-sm" id="copyLinkBtn">Copy</button></div></div>`;
+        html += `<div class="qr-container">${qrCodeUrl ? `<img src="${qrCodeUrl}" style="max-width:160px;">` : 'Loading QR...'}</div>`;
+        html += `<p>Share this link with all parties. They can draw their signature and take a selfie.</p></div>`;
+        document.getElementById('panelContainer').innerHTML = html;
+        document.getElementById('copyLinkBtn')?.addEventListener('click', () => {
+            navigator.clipboard.writeText(baseLink);
+            showToast('Link copied');
+        });
+    }
+
+    function renderMain() {
+        const mainTitle = document.getElementById('mainTitle');
+        const mainActions = document.getElementById('mainActions');
+        if (newContractMode) {
+            mainTitle.innerText = 'New Contract';
+            mainActions.innerHTML = '';
+            if (assistantConversation.length === 0) {
+                document.getElementById('panelContainer').innerHTML = '<div class="text-center" style="padding:3rem;">Loading assistant...</div>';
+            } else {
+                renderChatPanel();
+            }
+            return;
+        }
+        const contract = allContracts.find(c => c.id === activeContractId);
+        if (!contract) {
+            mainTitle.innerText = 'WaifaiCorp';
+            mainActions.innerHTML = '';
+            document.getElementById('panelContainer').innerHTML = '<div class="text-center" style="padding:3rem;">Select a contract or create a new one.</div>';
+            return;
+        }
+        mainTitle.innerText = contract.title;
+        mainActions.innerHTML = `<span class="status-badge status-${contract.status === 'signed' ? 'signed' : (contract.status === 'client_review' ? 'review' : 'draft')}">${contract.status === 'signed' ? 'Signed' : (contract.status === 'client_review' ? 'Pending signatures' : 'Draft')}</span>`;
+        renderContractView(contract);
+    }
+
+    async function initDashboard() {
+        document.getElementById('authContainer').style.display = 'none';
+        document.getElementById('dashboard').style.display = 'flex';
+        document.getElementById('companyNameDisplay').innerText = companyName;
+        await loadContracts();
+        document.getElementById('newContractBtn').addEventListener('click', startNewContract);
+        // Auto-refresh contracts every 10 seconds to reflect signatures
+        if (refreshInterval) clearInterval(refreshInterval);
+        refreshInterval = setInterval(async () => {
+            if (companyId && !newContractMode) {
+                await loadContracts();
+            }
+        }, 10000);
+    }
+
+    function escapeHtml(str) {
+        if (!str) return '';
+        return String(str).replace(/[&<>]/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' })[m]);
+    }
+</script>
+</body>
+</html>
