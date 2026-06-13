@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <title>WaifaiCorp – Sign Contract</title>
+    <style>
+        * { box-sizing: border-box; }
+        body {
+            font-family: 'Georgia', serif;
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 1rem;
+            background: #f5f7fa;
+            font-size: 16px;
+        }
+        .contract {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        }
+        .clause { margin-bottom: 1.5rem; }
+        .clause-title { font-weight: bold; font-size: 1.1rem; margin-bottom: 0.5rem; color: #0B2B4B; }
+        button, .btn {
+            background: #0B2B4B;
+            color: white;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1rem;
+            margin-top: 1rem;
+        }
+        button:disabled { background: #ccc; cursor: not-allowed; }
+        .error { color: red; }
+        .success { color: green; }
+        input, textarea {
+            width: 100%;
+            padding: 0.5rem;
+            margin-bottom: 1rem;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+            font-size: 1rem;
+        }
+        canvas {
+            border: 2px solid #ccc;
+            border-radius: 8px;
+            background: white;
+            cursor: crosshair;
+            width: 100%;
+            max-width: 500px;
+            height: auto;
+            touch-action: none;
+        }
+        .signature-area, .selfie-area {
+            margin: 1rem 0;
+            padding: 1rem;
+            background: #f9fafb;
+            border-radius: 8px;
+        }
+        .flex-buttons {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+        }
+        video, #selfiePreview {
+            width: 100%;
+            max-width: 300px;
+            border: 2px solid #ccc;
+            border-radius: 8px;
+            margin-top: 0.5rem;
+        }
+        @media (max-width: 600px) {
+            body { padding: 0.5rem; }
+            .contract { padding: 1rem; }
+            .clause-title { font-size: 1rem; }
+        }
+    </style>
+</head>
+<body>
+    <div id="loading">Loading contract...</div>
+    <div id="contractContainer" style="display:none;"></div>
+
+    <script src="https://cdn.jsdelivr.net/npm/signature_pad@4.1.7/dist/signature_pad.umd.min.js"></script>
+    <script>
+        let signaturePad = null;
+        let mediaStream = null;
+        let capturedSelfie = null;
+
+        const token = new URLSearchParams(window.location.search).get('token');
+        if (!token) {
+            document.getElementById('loading').innerHTML = '<p class="error">Invalid link</p>';
+        } else {
+            fetch(`/api/client/sign-direct/${token}`)
+                .then(res => { if (!res.ok) throw new Error('Contract not found'); return res.json(); })
+                .then(data => {
+                    document.getElementById('loading').style.display = 'none';
+                    const contract = data.contract;
+                    let html = `<div class="contract"><h1>${escapeHtml(contract.title)}</h1>`;
+                    contract.clauses.forEach(c => {
+                        html += `<div class="clause"><div class="clause-title">${escapeHtml(c.title)}</div><div>${escapeHtml(c.content)}</div></div>`;
+                    });
+                    html += `<h3>Parties</h3>`;
+                    contract.parties.forEach(p => {
+                        html += `<p><strong>${escapeHtml(p.name)}</strong> (${p.role}) – ${p.email || 'no email'}</p>`;
+                    });
+                    html += `<div class="signature-area">
+                                <h3>Digital Signature</h3>
+                                <p>Draw your signature below:</p>
+                                <canvas id="signatureCanvas" width="500" height="200" style="width:100%; max-width:500px; height:auto; border:2px solid #ccc;"></canvas>
+                                <div class="flex-buttons">
+                                    <button id="clearSignature">Clear</button>
+                                </div>
+                            </div>
+                            <div class="selfie-area">
+                                <h3>Selfie Verification</h3>
+                                <p>Take a selfie to verify your identity:</p>
+                                <video id="video" autoplay muted playsinline style="width:100%; max-width:300px; border:2px solid #ccc; border-radius:8px;"></video>
+                                <div class="flex-buttons">
+                                    <button id="captureSelfie">Capture Selfie</button>
+                                    <button id="retakeSelfie" style="display:none;">Retake</button>
+                                </div>
+                                <canvas id="selfieCanvas" style="display:none;"></canvas>
+                                <div id="selfiePreview"></div>
+                            </div>
+                            <div>
+                                <input type="email" id="signerEmail" placeholder="Your email address" required>
+                                <button id="signBtn">I Agree and Sign</button>
+                                <div id="signedMsg"></div>
+                            </div>
+                            </div>`;
+                    document.getElementById('contractContainer').innerHTML = html;
+                    document.getElementById('contractContainer').style.display = 'block';
+
+                    // Initialize signature pad
+                    const canvas = document.getElementById('signatureCanvas');
+                    canvas.width = 500;
+                    canvas.height = 200;
+                    signaturePad = new SignaturePad(canvas, { backgroundColor: 'white' });
+
+                    document.getElementById('clearSignature').addEventListener('click', () => { signaturePad.clear(); });
+
+                    // Selfie camera
+                    const video = document.getElementById('video');
+                    navigator.mediaDevices.getUserMedia({ video: true })
+                        .then(stream => {
+                            mediaStream = stream;
+                            video.srcObject = stream;
+                        })
+                        .catch(err => { console.warn('Camera error:', err); alert('Could not access camera. You can still sign without selfie.'); });
+
+                    document.getElementById('captureSelfie').addEventListener('click', () => {
+                        const canvasSelfie = document.getElementById('selfieCanvas');
+                        canvasSelfie.width = video.videoWidth;
+                        canvasSelfie.height = video.videoHeight;
+                        const ctx = canvasSelfie.getContext('2d');
+                        ctx.drawImage(video, 0, 0, canvasSelfie.width, canvasSelfie.height);
+                        capturedSelfie = canvasSelfie.toDataURL('image/jpeg');
+                        const preview = document.getElementById('selfiePreview');
+                        preview.innerHTML = `<img src="${capturedSelfie}" style="max-width:200px; border-radius:8px;">`;
+                        document.getElementById('captureSelfie').style.display = 'none';
+                        document.getElementById('retakeSelfie').style.display = 'inline-block';
+                    });
+
+                    document.getElementById('retakeSelfie').addEventListener('click', () => {
+                        capturedSelfie = null;
+                        document.getElementById('selfiePreview').innerHTML = '';
+                        document.getElementById('captureSelfie').style.display = 'inline-block';
+                        document.getElementById('retakeSelfie').style.display = 'none';
+                    });
+
+                    document.getElementById('signBtn').addEventListener('click', () => {
+                        const email = document.getElementById('signerEmail').value;
+                        if (!email) { alert('Enter your email'); return; }
+                        let signatureData = null;
+                        if (signaturePad && !signaturePad.isEmpty()) {
+                            signatureData = signaturePad.toDataURL();
+                        } else {
+                            if (!confirm('No signature drawn. Proceed without signature?')) return;
+                        }
+                        fetch(`/api/client/sign-direct/${token}`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ signerEmail: email, signatureData: signatureData, selfieData: capturedSelfie })
+                        })
+                        .then(r => r.json())
+                        .then(() => {
+                            document.getElementById('signedMsg').innerHTML = '<p class="success">✅ Signed successfully! You may close this page.</p>';
+                            document.getElementById('signBtn').disabled = true;
+                            // Stop camera
+                            if (mediaStream) mediaStream.getTracks().forEach(track => track.stop());
+                        })
+                        .catch(err => { document.getElementById('signedMsg').innerHTML = '<p class="error">Error: ' + err.message + '</p>'; });
+                    });
+                })
+                .catch(err => {
+                    document.getElementById('loading').innerHTML = '<p class="error">Error loading contract: ' + err.message + '</p>';
+                });
+        }
+        function escapeHtml(str) { return String(str).replace(/[&<>]/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;'})[m]); }
+    </script>
+</body>
+</html>

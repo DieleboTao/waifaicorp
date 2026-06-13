@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>WaifaiCorp – Contract Portal</title>
+    <script>
+        // Extract token from URL: /public/contract/TOKEN
+        const token = window.location.pathname.split('/').pop();
+        if (token) {
+            window.location.href = '/client-view.html?token=' + encodeURIComponent(token);
+        } else {
+            document.body.innerHTML = '<h3>Invalid contract link</h3><p>Please contact the contract issuer.</p>';
+        }
+    </script>
+</head>
+<body>Redirecting to contract portal...</body>
+</html>
